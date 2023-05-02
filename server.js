@@ -1,11 +1,26 @@
 require("dotenv").config();
+const mysql = require("mysql");
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "root123",
+  database: "DomzzSite",
+});
 
+db.connect((err) => {
+  if (err) { console.log("Error in Connection");
+console.log(err) }
+  else {
+    console.log("Connected")
+  }
+})
 const express = require("express");
 const app = express();
 
 const cors = require("cors");
 const path = require("path");
 const cookieParser = require("cookie-parser");
+const { CONNREFUSED } = require("dns");
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -35,3 +50,10 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Listening on ${port} \n ${twilioNum}`);
 });
+app.get('/getData', (req, res) => {
+  const sql = "SELECT * FROM PIZZA"
+  db.query(sql, (err, result) => {
+    if (err) return res.json({ Error: "Get employee error in sql" });
+    return res.json({ Status: "Success", Result: result })
+  })
+})
