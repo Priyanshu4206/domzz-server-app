@@ -1,5 +1,21 @@
 require("dotenv").config();
 const mysql = require("mysql");
+const express = require("express");
+const cors = require("cors");
+const fs = require("fs");
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+const acc_id = process.env.Acc_Id;
+const authToken = process.env.AuthToken;
+const twilioNum = process.env.TwilioNum;
+const client = require("twilio")(acc_id, authToken);
+const port = 5000;
+
+// Setting Up Connections With Database
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -7,48 +23,32 @@ const db = mysql.createConnection({
   database: "DomzzSite",
 });
 
+// Connecting to the Database
 db.connect((err) => {
   if (err) {
     console.log("Error in Connection");
     console.log(err);
   } else {
-    console.log("Connected");
+    console.log("Database Connected");
   }
 });
-const express = require("express");
-const app = express();
 
-const cors = require("cors");
-const path = require("path");
-const cookieParser = require("cookie-parser");
-const { CONNREFUSED } = require("dns");
-const { Console } = require("console");
-const { maxHeaderSize } = require("http");
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-const acc_id = process.env.Acc_Id;
-const authToken = process.env.AuthToken;
-const twilioNum = process.env.TwilioNum;
-
-const client = require("twilio")(acc_id, authToken);
-const port = 5000;
+// Sending Confirmation Message to the User Phone
 app.get("/sendConfirmMsg", (req, res) => {
   const { phone } = req.query;
   res.send(`Messaging Page of Server ${typeof phone}`);
   client.messages
     .create({
-      body: `Ordered placed successfully and will be delivered shortly. Call will made to confirm your location for further reference.`,
+      body: "Ordered placed successfully and will be delivered shortly. Call will made to confirm your location for further reference.",
+      from: "" + twilioNum,
       to: "+" + phone,
-      from: twilioNum,
     })
     .then((messages) => {
-      console.log(messages.body);
+      return res.json({ Status: "Success", Result: messages.body });
     });
 });
-app.get("/", (req, res) => {
-  res.send("Home Page of Server");
-});
+
+// Getting Data from Database to show on the Website
 app.get("/getData", (req, res) => {
   const Pizza_Sql = "SELECT * FROM pizza";
   const Sides_Sql = "SELECT * FROM sides";
@@ -77,7 +77,8 @@ app.get("/getData", (req, res) => {
     }
   });
 });
-const fs = require("fs");
+
+// Updating the Database with new Order
 app.post("/setData", (req, res) => {
   const json = fs.readFileSync("count.json", "utf-8");
   const obj = JSON.parse(json);
@@ -92,11 +93,6 @@ app.post("/setData", (req, res) => {
   Order_info["Customer_id"] = `Cs${obj.counter}`;
   Order_info["Trans_id"] = `Tr${obj.counter}`;
 
-  console.log(
-    Trans_info["Trans_id"],
-    Trans_info["Pay_mode"],
-    Trans_info["Confirmation"]
-  );
   const setCustomer = `INSERT INTO Customer (Cust_id,Customer_name, Customer_ph_no,Customer_email_id,Customer_location) VALUES('${Customer_info["Customer_id"]}','${Customer_info["Customer_name"]}','${Customer_info["Customer_ph_no"]}','${Customer_info["Customer_email_id"]}','${Customer_info["Customer_location"]}')`;
 
   const setOrder = `INSERT INTO order_details (Order_id,Trans_id,Customer_id,Product_id,Order_date,Total,Pay_mode) VALUES('${Order_info["Order_id"]}','${Order_info["Trans_id"]}','${Order_info["Customer_id"]}','${Order_info["Product_id"]}','${Order_info["Order_date"]}',${Order_info["Total"]},'${Order_info["Pay_mode"]}')`;
@@ -104,19 +100,20 @@ app.post("/setData", (req, res) => {
   const setTrans = `INSERT INTO trans_details (Trans_id,Pay_mode,Confirmation) VALUES('${Trans_info["Trans_id"]}','${Trans_info["Pay_mode"]}',${Trans_info["Confirmation"]})`;
 
   db.query(setCustomer, (err, result) => {
-    if (err) {
-      console.log(err);
-    }
+    if (err) return res.json({ Error: "Could not confirm/set the order" });
   });
   db.query(setOrder, (err, result) => {
     if (err) {
-      console.log(err);
+      return res.json({ Error: "Could not confirm/set the order" });
     }
   });
   db.query(setTrans, (err, result) => {
-    if (err) {
-      console.log(err);
-    }
+    if (err) return res.json({ Error: "Could not confirm/set the order" });
+    else
+      return res.json({
+        Status: "Success",
+        Result: "Successfully Added new Order",
+      });
   });
 });
 
