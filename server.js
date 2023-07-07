@@ -79,6 +79,7 @@ app.get("/getData", (req, res) => {
 });
 
 // Updating the Database with new Order
+
 app.post("/setData", (req, res) => {
   const json = fs.readFileSync("count.json", "utf-8");
   const obj = JSON.parse(json);
